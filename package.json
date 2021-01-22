@@ -2,7 +2,7 @@
   "name": "ckeditor5-drupal-image",
   "version": "1.0.0",
   "description": "Drupal specific attributes and overrides for CKEditor5 Image",
-  "main": "drupalimage.js",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:dll": "webpack --config webpack.config.js"
