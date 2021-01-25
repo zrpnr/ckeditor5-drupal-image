@@ -27,6 +27,7 @@ module.exports = {
   plugins: [
     new webpack.DllReferencePlugin({
       manifest: require('../ckeditor5/build/ckeditor5-dll.manifest.json'),
+      scope: 'ckeditor5/src',
       name: 'CKEditor5.dll',
     })
   ]
