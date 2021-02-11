@@ -131,7 +131,11 @@ class Adapter {
 				return reject( response && response.error && response.error.message ? response.error.message : genericErrorText );
 			}
 
-			resolve( response.url ? { default: response.url } : response.urls );
+			// @todo remove this after https://github.com/ckeditor/ckeditor5/issues/5204
+			//   has been resolved.
+			const url = `${response.url}#dataUUID=${response.uuid ? response.uuid : ''}#dataEntityType=${response.entity_type ? response.entity_type : ''}`;
+
+			resolve({ default: url });
 		} );
 
 		// Upload progress when it is supported.

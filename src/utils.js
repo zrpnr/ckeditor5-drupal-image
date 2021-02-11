@@ -86,6 +86,34 @@ export function allowDataAttributes(editor) {
             modelAttribute,
             modelElementName,
           ),
+        )
+        .add(
+          (dispatcher) => {
+            // @todo remove this after https://github.com/ckeditor/ckeditor5/issues/5204
+            //   has been resolved.
+            dispatcher.on('attribute:src:image', (evt, data, conversionApi) => {
+              const viewWriter = conversionApi.writer;
+
+              const figure = conversionApi.mapper.toViewElement(data.item);
+              const img = figure.getChild(0);
+
+              let src = data.attributeNewValue;
+              if (data.attributeNewValue !== null) {
+                Object.entries(imageAttributes).forEach(([fragment, attribute]) => {
+                  const pattern = new RegExp(`\\#${fragment}\\=([^\\#\\?]+)`);
+                  const match = src.match(pattern);
+                  if (match) {
+                    src = src.replace(pattern, '');
+                    viewWriter.setAttribute(attribute, match[1], img);
+                  }
+                });
+
+                if (src !== data.attributeNewValue) {
+                  viewWriter.setAttribute('src', src, img);
+                }
+              }
+            })
+          }
         );
     },
   );
