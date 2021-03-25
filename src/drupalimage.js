@@ -1,4 +1,4 @@
-import { allowDataAttributes } from './utils';
+import { allowImageDataAttributes, allowImageInlineDataAttributes } from "./utils";
 
 class DrupalImage {
   constructor(editor) {
@@ -7,7 +7,15 @@ class DrupalImage {
 
   afterInit() {
     const { editor } = this;
-    allowDataAttributes(editor);
+    const { schema } = editor.model;
+
+    if (schema.isRegistered('imageInline')) {
+      allowImageInlineDataAttributes(editor);
+    }
+    
+    if (schema.isRegistered('image')) {
+      allowImageDataAttributes(editor);
+    }
   }
 }
 

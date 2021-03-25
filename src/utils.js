@@ -60,61 +60,94 @@ function downcastAttribute(
     );
 }
 
-export function allowDataAttributes(editor) {
-  const viewElementName = 'img';
-  const modelElementName = 'image';
-
-  const imageAttributes = {
+function getImageAttributes() {
+  return {
     dataUUID: 'data-entity-uuid',
     dataEntityType: 'data-entity-type',
   };
+}
+
+function convertFragmentToAttributes(editor, imageType) {
+  const imageAttributes = getImageAttributes();
+  editor.conversion.for('downcast').add(
+    (dispatcher) => {
+      // @todo remove this after https://github.com/ckeditor/ckeditor5/issues/5204
+      //   has been resolved.
+      dispatcher.on(`attribute:src:${imageType}`, (evt, data, conversionApi) => {
+        const viewWriter = conversionApi.writer;
+
+        const figure = conversionApi.mapper.toViewElement(data.item);
+        const img = figure.getChild(0);
+
+        let src = data.attributeNewValue;
+        if (data.attributeNewValue !== null) {
+          Object.entries(imageAttributes).forEach(([fragment, attribute]) => {
+            const pattern = new RegExp(`\\#${fragment}\\=([^\\#\\?]+)`);
+            const match = src.match(pattern);
+            if (match) {
+              src = src.replace(pattern, '');
+              viewWriter.setAttribute(attribute, match[1], img);
+            }
+          });
+
+          if (src !== data.attributeNewValue) {
+            viewWriter.setAttribute('src', src, img);
+          }
+        }
+      })
+    }
+  );
+}
+
+export function allowImageInlineDataAttributes(editor) {
+  const modelElementName = 'imageInline';
+  const imageAttributes = getImageAttributes();
+
+  Object.entries(imageAttributes).forEach(([modelAttribute, viewAttribute]) => {
+    editor.model.schema.extend(modelElementName, {
+      allowAttributes: [modelAttribute],
+    });
+
+    editor.conversion.for('upcast').attributeToAttribute({
+      view: viewAttribute,
+      model: modelAttribute,
+    });
+
+    editor.conversion.for('dataDowncast').attributeToAttribute({
+      view: viewAttribute,
+      model: modelAttribute,
+    });
+  });
+
+  convertFragmentToAttributes(editor, modelElementName);
+}
+
+export function allowImageDataAttributes(editor) {
+  const modelElementName = 'image';
+
+  const imageAttributes = getImageAttributes();
 
   Object.entries(imageAttributes).forEach(
     ([modelAttribute, viewAttribute]) => {
+      console.log(`adding ${modelAttribute} : ${viewAttribute} for ${modelElementName}`);
       editor.model.schema.extend(modelElementName, {
         allowAttributes: [modelAttribute],
       });
       editor.conversion
         .for('upcast')
-        .add(upcastAttribute(viewElementName, viewAttribute, modelAttribute));
+        .add(upcastAttribute('img', viewAttribute, modelAttribute));
       editor.conversion
         .for('downcast')
         .add(
           downcastAttribute(
-            viewElementName,
+            'img',
             viewAttribute,
             modelAttribute,
             modelElementName,
           ),
         )
-        .add(
-          (dispatcher) => {
-            // @todo remove this after https://github.com/ckeditor/ckeditor5/issues/5204
-            //   has been resolved.
-            dispatcher.on('attribute:src:image', (evt, data, conversionApi) => {
-              const viewWriter = conversionApi.writer;
-
-              const figure = conversionApi.mapper.toViewElement(data.item);
-              const img = figure.getChild(0);
-
-              let src = data.attributeNewValue;
-              if (data.attributeNewValue !== null) {
-                Object.entries(imageAttributes).forEach(([fragment, attribute]) => {
-                  const pattern = new RegExp(`\\#${fragment}\\=([^\\#\\?]+)`);
-                  const match = src.match(pattern);
-                  if (match) {
-                    src = src.replace(pattern, '');
-                    viewWriter.setAttribute(attribute, match[1], img);
-                  }
-                });
-
-                if (src !== data.attributeNewValue) {
-                  viewWriter.setAttribute('src', src, img);
-                }
-              }
-            })
-          }
-        );
     },
   );
+
+  convertFragmentToAttributes(editor, modelElementName);
 }
