@@ -67,36 +67,24 @@ function getImageAttributes() {
   };
 }
 
-function convertFragmentToAttributes(editor, imageType) {
-  const imageAttributes = getImageAttributes();
-  editor.conversion.for('downcast').add(
-    (dispatcher) => {
-      // @todo remove this after https://github.com/ckeditor/ckeditor5/issues/5204
-      //   has been resolved.
-      dispatcher.on(`attribute:src:${imageType}`, (evt, data, conversionApi) => {
-        const viewWriter = conversionApi.writer;
+function convertFragmentToAttributes(img, data, conversionApi) {
+  const viewWriter = conversionApi.writer;
+  let src = data.attributeNewValue;
+  if (data.attributeNewValue !== null) {
+    const imageAttributes = getImageAttributes();
+    Object.entries(imageAttributes).forEach(([fragment, attribute]) => {
+      const pattern = new RegExp(`\\#${fragment}\\=([^\\#\\?]+)`);
+      const match = src.match(pattern);
+      if (match) {
+        src = src.replace(pattern, '');
+        viewWriter.setAttribute(attribute, match[1], img);
+      }
+    });
 
-        const figure = conversionApi.mapper.toViewElement(data.item);
-        const img = figure.getChild(0);
-
-        let src = data.attributeNewValue;
-        if (data.attributeNewValue !== null) {
-          Object.entries(imageAttributes).forEach(([fragment, attribute]) => {
-            const pattern = new RegExp(`\\#${fragment}\\=([^\\#\\?]+)`);
-            const match = src.match(pattern);
-            if (match) {
-              src = src.replace(pattern, '');
-              viewWriter.setAttribute(attribute, match[1], img);
-            }
-          });
-
-          if (src !== data.attributeNewValue) {
-            viewWriter.setAttribute('src', src, img);
-          }
-        }
-      })
+    if (src !== data.attributeNewValue) {
+      viewWriter.setAttribute('src', src, img);
     }
-  );
+  }
 }
 
 export function allowImageInlineDataAttributes(editor) {
@@ -113,13 +101,21 @@ export function allowImageInlineDataAttributes(editor) {
       model: modelAttribute,
     });
 
-    editor.conversion.for('dataDowncast').attributeToAttribute({
+    editor.conversion.for('downcast').attributeToAttribute({
       view: viewAttribute,
       model: modelAttribute,
-    });
+    }).add(
+      (dispatcher) => {
+        // @todo remove this after https://github.com/ckeditor/ckeditor5/issues/5204
+        //   has been resolved.
+        dispatcher.on(`attribute:src:${modelElementName}`, (evt, data, conversionApi) => {
+  
+          const img = conversionApi.mapper.toViewElement(data.item);
+          convertFragmentToAttributes(img, data, conversionApi);
+        });
+      }
+    );
   });
-
-  convertFragmentToAttributes(editor, modelElementName);
 }
 
 export function allowImageDataAttributes(editor) {
@@ -145,9 +141,18 @@ export function allowImageDataAttributes(editor) {
             modelAttribute,
             modelElementName,
           ),
-        )
+        ).add(
+          (dispatcher) => {
+            // @todo remove this after https://github.com/ckeditor/ckeditor5/issues/5204
+            //   has been resolved.
+            dispatcher.on(`attribute:src:${modelElementName}`, (evt, data, conversionApi) => {
+      
+              const figure = conversionApi.mapper.toViewElement(data.item);
+              const img = figure.getChild(0);
+              convertFragmentToAttributes(img, data, conversionApi);
+            });
+          }
+        );
     },
   );
-
-  convertFragmentToAttributes(editor, modelElementName);
 }
