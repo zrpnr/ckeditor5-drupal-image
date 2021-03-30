@@ -1,4 +1,8 @@
-import { modelToViewAttributeConverter } from './converters';
+import {
+  modelToViewAttributeConverter,
+  convertSrcFragments,
+} from './converters';
+import { getViewImageFromWidget, fragmentAttributes } from './utils';
 
 class DrupalImage {
   constructor(editor) {
@@ -8,10 +12,7 @@ class DrupalImage {
   afterInit() {
     const { editor } = this;
     const { schema } = editor.model;
-    const fragmentAttributes = {
-      dataUUID: 'data-entity-uuid',
-      dataEntityType: 'data-entity-type',
-    };
+    const { conversion } = editor;
 
     const drupalAttributes = [
       'data-entity-uuid',
@@ -27,24 +28,27 @@ class DrupalImage {
         });
       }
 
-      drupalAttributes.forEach((drupalAttribute) => {
-        editor.conversion
-          .for('downcast')
-          .add(modelToViewAttributeConverter(imageType, drupalAttribute));
-
-        editor.conversion.for('upcast').attributeToAttribute({
-          view: drupalAttribute,
-          model: drupalAttribute,
-        });
+      // Convert src with fragment to data attributes.
+      conversion.for('downcast').add((dispatcher) => {
+        dispatcher.on(`attribute:src:${imageType}`, convertSrcFragments);
       });
     });
 
+    // Copy the attributes directly to the img on downcast.
+    drupalAttributes.forEach((drupalAttribute) => {
+      conversion
+        .for('dataDowncast')
+        .add(modelToViewAttributeConverter('image', drupalAttribute));
+    });
+
+    // Converts existing src with fragment to entity-uuid and entity-type.
+    // This does nothing on a Drupal upload, but converts existing fragments.
     editor.data.upcastDispatcher.on(
       `element:img`,
       (evt, data, conversionApi) => {
-        const { consumable, writer } = conversionApi;
+        const { writer } = conversionApi;
 
-        if (!consumable.consume(data.viewItem, { src: /\#/ })) {
+        if (!data.modelRange) {
           return;
         }
 
@@ -58,14 +62,10 @@ class DrupalImage {
           const pattern = new RegExp(`\\#${fragment}\\=([^\\#\\?]+)`);
           const match = src.match(pattern);
           if (match) {
-            console.log('its a match', match[1]);
-            if (data.modelRange) {
-              for (const item of data.modelRange.getItems({ shallow: true })) {
-                if (schema.checkAttribute(item, attribute)) {
-                  console.log('setting', match[1], item);
-                  writer.setAttribute(attribute, match[1], item);
-                  writer.setAttribute('src', src.replace(pattern, ''), item);
-                }
+            for (const item of data.modelRange.getItems({ shallow: true })) {
+              if (schema.checkAttribute(item, attribute)) {
+                console.log('setting', match[1], item);
+                writer.setAttribute(attribute, match[1], item);
               }
             }
           }
