@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/zrpnr/ckeditor5-drupal-image#readme",
   "devDependencies": {
+    "prettier": "^2.2.1",
     "terser-webpack-plugin": "^3.0.2",
     "webpack": "^4.43.0",
     "webpack-cli": "^4.4.0"
