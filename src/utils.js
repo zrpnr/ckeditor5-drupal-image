@@ -1,158 +1,17 @@
-function findViewChild(viewElement, viewElementName, conversionApi) {
-  const viewChildren = Array.from(
-    conversionApi.writer.createRangeIn(viewElement).getItems(),
-  );
+export function getViewImageFromWidget(figureView) {
+  if (figureView.is('element', 'img')) {
+    return figureView;
+  }
 
-  return viewChildren.find((item) => item.is('element', viewElementName));
-}
+  const figureChildren = [];
 
-function upcastAttribute(viewElementName, viewAttribute, modelAttribute) {
-  return (dispatcher) =>
-    dispatcher.on(
-      `element:${viewElementName}`,
-      (evt, data, conversionApi) => {
-        const { viewItem, modelRange } = data;
+  for (const figureChild of figureView.getChildren()) {
+    figureChildren.push(figureChild);
 
-        const modelElement = modelRange && modelRange.start.nodeAfter;
-
-        if (!modelElement) {
-          return;
-        }
-
-        conversionApi.writer.setAttribute(
-          modelAttribute,
-          viewItem.getAttribute(viewAttribute),
-          modelElement,
-        );
-      },
-    );
-}
-
-function downcastAttribute(
-  viewElementName,
-  viewAttribute,
-  modelAttribute,
-  modelElementName,
-) {
-  return (dispatcher) =>
-    dispatcher.on(
-      `insert:${modelElementName}`,
-      (evt, data, conversionApi) => {
-        const modelElement = data.item;
-
-        const viewFigure = conversionApi.mapper.toViewElement(modelElement);
-        const viewElement = findViewChild(
-          viewFigure,
-          viewElementName,
-          conversionApi,
-        );
-
-        if (!viewElement) {
-          return;
-        }
-
-        conversionApi.writer.setAttribute(
-          viewAttribute,
-          modelElement.getAttribute(modelAttribute),
-          viewElement,
-        );
-      },
-    );
-}
-
-function getImageAttributes() {
-  return {
-    dataUUID: 'data-entity-uuid',
-    dataEntityType: 'data-entity-type',
-  };
-}
-
-function convertFragmentToAttributes(img, data, conversionApi) {
-  const viewWriter = conversionApi.writer;
-  let src = data.attributeNewValue;
-  if (data.attributeNewValue !== null) {
-    const imageAttributes = getImageAttributes();
-    Object.entries(imageAttributes).forEach(([fragment, attribute]) => {
-      const pattern = new RegExp(`\\#${fragment}\\=([^\\#\\?]+)`);
-      const match = src.match(pattern);
-      if (match) {
-        src = src.replace(pattern, '');
-        viewWriter.setAttribute(attribute, match[1], img);
-      }
-    });
-
-    if (src !== data.attributeNewValue) {
-      viewWriter.setAttribute('src', src, img);
+    if (figureChild.is('element')) {
+      figureChildren.push(...figureChild.getChildren());
     }
   }
-}
 
-export function allowImageInlineDataAttributes(editor) {
-  const modelElementName = 'imageInline';
-  const imageAttributes = getImageAttributes();
-
-  Object.entries(imageAttributes).forEach(([modelAttribute, viewAttribute]) => {
-    editor.model.schema.extend(modelElementName, {
-      allowAttributes: [modelAttribute],
-    });
-
-    editor.conversion.for('upcast').attributeToAttribute({
-      view: viewAttribute,
-      model: modelAttribute,
-    });
-
-    editor.conversion.for('downcast').attributeToAttribute({
-      view: viewAttribute,
-      model: modelAttribute,
-    }).add(
-      (dispatcher) => {
-        // @todo remove this after https://github.com/ckeditor/ckeditor5/issues/5204
-        //   has been resolved.
-        dispatcher.on(`attribute:src:${modelElementName}`, (evt, data, conversionApi) => {
-  
-          const img = conversionApi.mapper.toViewElement(data.item);
-          convertFragmentToAttributes(img, data, conversionApi);
-        });
-      }
-    );
-  });
-}
-
-export function allowImageDataAttributes(editor) {
-  const modelElementName = 'image';
-
-  const imageAttributes = getImageAttributes();
-
-  Object.entries(imageAttributes).forEach(
-    ([modelAttribute, viewAttribute]) => {
-      console.log(`adding ${modelAttribute} : ${viewAttribute} for ${modelElementName}`);
-      editor.model.schema.extend(modelElementName, {
-        allowAttributes: [modelAttribute],
-      });
-      editor.conversion
-        .for('upcast')
-        .add(upcastAttribute('img', viewAttribute, modelAttribute));
-      editor.conversion
-        .for('downcast')
-        .add(
-          downcastAttribute(
-            'img',
-            viewAttribute,
-            modelAttribute,
-            modelElementName,
-          ),
-        ).add(
-          (dispatcher) => {
-            // @todo remove this after https://github.com/ckeditor/ckeditor5/issues/5204
-            //   has been resolved.
-            dispatcher.on(`attribute:src:${modelElementName}`, (evt, data, conversionApi) => {
-      
-              const figure = conversionApi.mapper.toViewElement(data.item);
-              const img = figure.getChild(0);
-              convertFragmentToAttributes(img, data, conversionApi);
-            });
-          }
-        );
-    },
-  );
+  return figureChildren.find((viewChild) => viewChild.is('element', 'img'));
 }
