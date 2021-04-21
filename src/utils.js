@@ -67,6 +67,7 @@ export function allowDataAttributes(editor) {
   const imageAttributes = {
     dataUUID: 'data-entity-uuid',
     dataEntityType: 'data-entity-type',
+    'data-caption': 'data-caption',
   };
 
   Object.entries(imageAttributes).forEach(
